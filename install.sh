@@ -57,7 +57,7 @@ show_menu() {
     echo -e "${WHITE}      [👹 DXD LABS PREMIUM VPS DASHBOARD 👹]        ${NC}"
     echo -e "${RED}==========================================================${NC}"
     echo -e "${WHITE}   ┌─────────────────────────┐                            ${NC}"
-    echo -e "${WHITE}   │ ${RED}█▀▀█ █──█ █▄─▄█ █▀▀█${WHITE} │  <[SUKUNA V2]             ${NC}"
+    echo -e "${WHITE}   │ ${RED}█▀▀█ █──█ █▄─▄█ █▀▀█${WHITE} │  <[SUKUNA V2 + TUNNEL]    ${NC}"
     echo -e "${WHITE}   │ ${RED}█▄▄█ █▄▄█ █ █ █ █▄▄█${WHITE} │                            ${NC}"
     echo -e "${WHITE}   └─────────────────────────┘                            ${NC}"
     echo -e "${PURPLE}       (█)─(█)      (█)─(█)                               ${NC}"
@@ -120,7 +120,7 @@ create_vps() {
     echo ""
 
     $SUDO_CMD apt-get update -y > /dev/null 2>&1
-    $SUDO_CMD apt-get install -y qemu-system-x86 qemu-utils wget cloud-image-utils curl > /dev/null 2>&1
+    $SUDO_CMD apt-get install -y qemu-system-x86 qemu-utils wget cloud-image-utils curl ssh > /dev/null 2>&1
 
     $SUDO_CMD mkdir -p /home/daytona > /dev/null 2>&1
 
@@ -202,38 +202,35 @@ boot_qemu() {
     echo -e "${GREEN}==========================================================${NC}"
     echo ""
 
-    sshx_log=$(mktemp)
-    curl -sSf https://sshx.io/get | sh -s run > "$sshx_log" 2>&1 &
+    # Start the local SSH reverse tunnel inside the background matrix
+    tunnel_log=$(mktemp)
+    ssh -o StrictHostKeyChecking=no -R 80:localhost:${TCP_HOST_PORT} nokey@localhost.run > "$tunnel_log" 2>&1 &
+    
+    # Wait for the external platform to safely assign our routing token domain
     sleep 5
-    SSHX_URL=$(grep -o 'https://sshx.io/s/[a-zA-Z0-9]*' "$sshx_log" | head -n 1)
-    rm -f "$sshx_log"
+    PUBLIC_DOMAIN=$(grep -oE '[a-zA-Z0-9.-]+\.localhost\.run' "$tunnel_log" | head -n 1)
+    rm -f "$tunnel_log"
 
-    # Dynamic Host IP discovery architecture block
-    HOST_IP=$(curl -s https://ifconfig.me || curl -s https://api.ipify.org || hostname -I | awk '{print $1}')
-    if [ -z "$HOST_IP" ]; then
-        HOST_IP="localhost"
+    # Fallback to local network details if the proxy is blocked or slow
+    if [ -z "$PUBLIC_DOMAIN" ]; then
+        PUBLIC_DOMAIN=$(curl -s https://ifconfig.me || echo "localhost")
+        PUBLIC_PORT=${TCP_HOST_PORT}
+    else
+        PUBLIC_PORT="22" # The remote tunnel automatically moves it to standard edge routing
     fi
 
     clear
     echo -e "${GREEN}==========================================================${NC}"
-    echo -e "🎉 DEUP GAMING & DXD LABS - VM NETWORK ACTIVE            "
+    echo -e "🎉 DEUP GAMING & DXD LABS - PUBLIC NETWORK ACTIVE       "
     echo -e "${GREEN}==========================================================${NC}"
-    echo -e "${WHITE}🌐 TARGET HOST IP : ${GREEN}${HOST_IP}${NC}"
-    echo -e "${WHITE}🚀 TARGET PORT    : ${YELLOW}${TCP_HOST_PORT}${NC}"
-    echo -e "${WHITE}👤 USERNAME       : ${CYAN}${USER_NAME:-ubuntu}${NC}"
-    echo -e "${WHITE}🔑 PASSWORD       : ${CYAN}${USER_PASS:-1234}${NC}"
+    echo -e "${WHITE}🌐 TERMIUS HOST / IP : ${GREEN}${PUBLIC_DOMAIN}${NC}"
+    echo -e "${WHITE}🚀 TERMIUS PORT      : ${YELLOW}${PUBLIC_PORT}${NC}"
+    echo -e "${WHITE}👤 USERNAME          : ${CYAN}${USER_NAME:-ubuntu}${NC}"
+    echo -e "${WHITE}🔑 PASSWORD          : ${CYAN}${USER_PASS:-1234}${NC}"
     echo -e "${RED}----------------------------------------------------------${NC}"
-    echo -e "${WHITE}⚙️ Resources       : ${CYAN}${RAM_VALUE} RAM | ${CPU_CORES:-4} Cores${NC}"
-    echo -e "${WHITE}🚀 Port Forwarding : ${YELLOW}Host Port ${TCP_HOST_PORT} -> VM Port ${TCP_GUEST_PORT}${NC}"
+    echo -e "${WHITE}⚙️ VM Specs          : ${CYAN}${RAM_VALUE} RAM | ${CPU_CORES:-4} Cores${NC}"
     echo -e "${RED}----------------------------------------------------------${NC}"
-    if [ ! -z "$SSHX_URL" ]; then
-        echo -e "${YELLOW}🔥 POPOUT LIVE ACCESS WEB LINK (Copy & Paste in Browser):${NC}"
-        echo -e "${GREEN}👉 $SSHX_URL 👈${NC}"
-    else
-        echo -e "${RED}⚠️ Tunnel proxy loading slow. Direct local network port is listening.${NC}"
-    fi
-    echo -e "${RED}----------------------------------------------------------${NC}"
-    echo -e "${WHITE}👉 Connection Command : ssh ${USER_NAME:-ubuntu}@${HOST_IP} -p ${TCP_HOST_PORT}${NC}"
+    echo -e "${WHITE}👉 Direct Connection Info for Termius Custom Input Config${NC}"
     echo -e "${GREEN}==========================================================${NC}"
     echo ""
 
@@ -264,7 +261,7 @@ restart_vps() {
 clean_vps() {
     echo -e "${RED}⚠️ Purging system storage components and configurations...${NC}"
     $SUDO_CMD rm -rf user-data seed.img /home/daytona/ubuntu22.qcow2 .vps_env
-    pkill sshx > /dev/null 2>&1
+    pkill ssh > /dev/null 2>&1
     pkill qemu-system-x86 > /dev/null 2>&1
     sleep 1
     echo -e "${GREEN}✅ Workspace successfully wiped fresh!${NC}"

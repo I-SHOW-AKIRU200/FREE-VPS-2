@@ -57,7 +57,7 @@ show_menu() {
     echo -e "${WHITE}      [👹 DXD LABS PREMIUM VPS DASHBOARD 👹]        ${NC}"
     echo -e "${RED}==========================================================${NC}"
     echo -e "${WHITE}   ┌─────────────────────────┐                            ${NC}"
-    echo -e "${WHITE}   │ ${RED}█▀▀█ █──█ █▄─▄█ █▀▀█${WHITE} │  <[SUKUNA V2 + TUNNEL]    ${NC}"
+    echo -e "${WHITE}   │ ${RED}█▀▀█ █──█ █▄─▄█ █▀▀█${WHITE} │  <[SUKUNA V2 + PINGGY]    ${NC}"
     echo -e "${WHITE}   │ ${RED}█▄▄█ █▄▄█ █ █ █ █▄▄█${WHITE} │                            ${NC}"
     echo -e "${WHITE}   └─────────────────────────┘                            ${NC}"
     echo -e "${PURPLE}       (█)─(█)      (█)─(█)                               ${NC}"
@@ -202,35 +202,38 @@ boot_qemu() {
     echo -e "${GREEN}==========================================================${NC}"
     echo ""
 
-    # Start the local SSH reverse tunnel inside the background matrix
+    # Establish an encrypted public TCP relay via Pinggy core endpoints
     tunnel_log=$(mktemp)
-    ssh -o StrictHostKeyChecking=no -R 80:localhost:${TCP_HOST_PORT} nokey@localhost.run > "$tunnel_log" 2>&1 &
+    ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:${TCP_HOST_PORT} tcp.pinggy.io > "$tunnel_log" 2>&1 &
     
-    # Wait for the external platform to safely assign our routing token domain
-    sleep 5
-    PUBLIC_DOMAIN=$(grep -oE '[a-zA-Z0-9.-]+\.localhost\.run' "$tunnel_log" | head -n 1)
+    # Allow the secure pipeline metadata mapping response to sync
+    sleep 6
+    
+    # Process text output matrix parsing patterns safely
+    RAW_LINE=$(grep -oE "ran.*\.pinggy\.link:[0-9]+" "$tunnel_log" | head -n 1)
     rm -f "$tunnel_log"
 
-    # Fallback to local network details if the proxy is blocked or slow
-    if [ -z "$PUBLIC_DOMAIN" ]; then
-        PUBLIC_DOMAIN=$(curl -s https://ifconfig.me || echo "localhost")
-        PUBLIC_PORT=${TCP_HOST_PORT}
+    if [ ! -z "$RAW_LINE" ]; then
+        TUNNEL_HOST=$(echo "$RAW_LINE" | cut -d':' -f1)
+        TUNNEL_PORT=$(echo "$RAW_LINE" | cut -d':' -f2)
     else
-        PUBLIC_PORT="22" # The remote tunnel automatically moves it to standard edge routing
+        # Direct local network discovery fallback logic block
+        TUNNEL_HOST=$(curl -s https://ifconfig.me || echo "localhost")
+        TUNNEL_PORT=${TCP_HOST_PORT}
     fi
 
     clear
     echo -e "${GREEN}==========================================================${NC}"
-    echo -e "🎉 DEUP GAMING & DXD LABS - PUBLIC NETWORK ACTIVE       "
+    echo -e "🎉 DEUP GAMING & DXD LABS - PUBLIC SECURE ACTIVE        "
     echo -e "${GREEN}==========================================================${NC}"
-    echo -e "${WHITE}🌐 TERMIUS HOST / IP : ${GREEN}${PUBLIC_DOMAIN}${NC}"
-    echo -e "${WHITE}🚀 TERMIUS PORT      : ${YELLOW}${PUBLIC_PORT}${NC}"
+    echo -e "${WHITE}🌐 TERMIUS HOST / IP : ${GREEN}${TUNNEL_HOST}${NC}"
+    echo -e "${WHITE}🚀 TERMIUS PORT      : ${YELLOW}${TUNNEL_PORT}${NC}"
     echo -e "${WHITE}👤 USERNAME          : ${CYAN}${USER_NAME:-ubuntu}${NC}"
     echo -e "${WHITE}🔑 PASSWORD          : ${CYAN}${USER_PASS:-1234}${NC}"
     echo -e "${RED}----------------------------------------------------------${NC}"
     echo -e "${WHITE}⚙️ VM Specs          : ${CYAN}${RAM_VALUE} RAM | ${CPU_CORES:-4} Cores${NC}"
     echo -e "${RED}----------------------------------------------------------${NC}"
-    echo -e "${WHITE}👉 Direct Connection Info for Termius Custom Input Config${NC}"
+    echo -e "${YELLOW}🔒 Fully App-Free! Paste these credentials directly into Termius.${NC}"
     echo -e "${GREEN}==========================================================${NC}"
     echo ""
 
